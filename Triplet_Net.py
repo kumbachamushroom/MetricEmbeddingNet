@@ -370,6 +370,9 @@ def act_fun(act_type):
     if act_type == "linear":
         return nn.LeakyReLU(1)  # initializzed like this, but not used in forward!
 
+    if act_type == "none":
+        return None
+
 
 class LayerNorm(nn.Module):
 
