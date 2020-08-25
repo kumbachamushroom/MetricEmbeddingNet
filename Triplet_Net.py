@@ -370,6 +370,9 @@ def act_fun(act_type):
     if act_type == "linear":
         return nn.LeakyReLU(1)  # initializzed like this, but not used in forward!
 
+    if act_type == "none":
+        return "none"
+
 
 class LayerNorm(nn.Module):
 
@@ -424,8 +427,8 @@ class MLP(nn.Module):
             self.drop.append(nn.Dropout(p=self.fc_drop[i]))
 
             # activation
-
-            self.act.append(act_fun(self.fc_act[i]))
+            if act_fun(self.fc_act[i]) != "none":
+                self.act.append(act_fun(self.fc_act[i]))
 
             add_bias = True
 
