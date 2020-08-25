@@ -43,7 +43,6 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
 
         total_samples = total_samples + total
         accuracy.update((correct_negative/total)*100, 1)
-        print("The loss is ", loss)
         optimizer_SincNet.zero_grad()
         optimizer_MLP.zero_grad()
         loss.backward()
