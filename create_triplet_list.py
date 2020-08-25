@@ -65,7 +65,7 @@ class Generate_Triplet_List:
         :return: None
         """
         for track in self.track_list:
-            print(track())
+
             try:
                 filename = track[track.rfind('/') + 1:]
                 print(filename)
