@@ -65,7 +65,7 @@ def main():
         wandb.init(project='SincNet_MetricLoss')
         wandb.run.name = project_name
 
-    device = torch.device("cuda:1")
+    device = torch.device("cuda:0")
 
     kwargs = {'num_workers' : 4, 'pin_memory':True}
 
