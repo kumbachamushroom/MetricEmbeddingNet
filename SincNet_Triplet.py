@@ -7,6 +7,7 @@ import torch.utils.data as data
 import torch.optim as optim
 import time
 from Metric_Losses import batch_hard_triplet_loss
+import torch.backends.cudnn as cudnn
 
 class AverageMeter:
     '''Computes and stores the average and current value'''
@@ -41,10 +42,10 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
                                                                 squared=True)
         print("The loss is ", loss)
         optimizer_SincNet.zero_grad()
-        #optimizer_MLP.zero_grad()
+        optimizer_MLP.zero_grad()
         loss.backward()
         optimizer_SincNet.step()
-        #optimizer_MLP.step()
+        optimizer_MLP.step()
         losses.update(loss, 1)
         print(' Train Epoch {} [{}/{}] \t Loss {:.4f} \t '.format(epoch, i, len(iter(train_loader)), losses.avg))
 
@@ -64,14 +65,14 @@ def main():
         wandb.init(project='SincNet_MetricLoss')
         wandb.run.name = project_name
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda:1")
 
-    kwargs = {'num_workers' : 2, 'pin_memory':True}
+    kwargs = {'num_workers' : 4, 'pin_memory':True}
 
     #Get data path
     data_PATH = options.path
-    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=4, shuffle=False, **kwargs)
-    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=4, shuffle=False, **kwargs)
+    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=16, shuffle=False, **kwargs)
+    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=16, shuffle=False, **kwargs)
 
     #get parameters for SincNet and MLP
     #[cnn]
@@ -131,8 +132,12 @@ def main():
     MLP_net = MLP(DNN1_args)
     MLP_net.to(device)
 
-    optimizer_SincNet = optim.RMSprop(params=list(SincNet_model.parameters()) + list(MLP_net.parameters()), lr=lr, alpha=0.8, momentum=0.5)
+    optimizer_SincNet = optim.RMSprop(params=SincNet_model.parameters(), lr=lr, alpha=0.8, momentum=0.5)
     optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
+
+    cudnn.benchmark = True
+    cudnn.enabled = True
+
 
     for epoch in range(1, N_epochs+1):
         start_time = time.time()
