@@ -30,16 +30,20 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
     MLP_model.train()
     SincNet_model.train()
     losses = AverageMeter()
-    i = 0
-    for batch in iter(train_loader):
-        i =+ 1
-        tracks, int_labels, string_labels = batch
+    accuracy = AverageMeter()
+    total_samples = 0
+    for batch_idx, (tracks, int_labels, string_labels) in enumerate(train_loader):
+        i = i + 1
         tracks, int_labels = tracks.cuda(), int_labels.cuda()
+        #tracks, int_labels = tracks.cuda(), int_labels.cuda()
         embeddings = SincNet_model(tracks)
         embeddings = MLP_model(embeddings)
         loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_positive=2,
                                                                 margin_negative=2, device='cuda',
                                                                 squared=True)
+
+        total_samples = total_samples + total
+        accuracy.update((correct_negative/total)*100, 1)
         print("The loss is ", loss)
         optimizer_SincNet.zero_grad()
         optimizer_MLP.zero_grad()
@@ -47,7 +51,27 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
         optimizer_SincNet.step()
         optimizer_MLP.step()
         losses.update(loss, 1)
-        print(' Train Epoch {} [{}/{}] \t Loss {:.4f} \t '.format(epoch, i, len(iter(train_loader)), losses.avg))
+        if batch_idx % 64 == 0:
+            print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, len(train_loader.dataset), losses.avg, accuracy.avg), flush=True, end='\r')
+
+def test(test_loader, SincNet_model, MLP_model,epoch):
+    MLP_model.eval()
+    SincNet_model.eval()
+    total_samples = 0
+    losses = AverageMeter()
+    accuracy = AverageMeter()
+    with torch.no_grad():
+        for batch_idx, (tracks, int_labels, string_labels) in enumerate(test_loader):
+            tracks, int_labels = tracks.cuda(), int_labels.cuda()
+            embeddings = SincNet_model(embeddings)
+            embeddings = MLP_model(embeddings)
+            loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_negative=2, margin_positive=2,
+                                                                    device='cuda', squared=True)
+            total_samples = total_samples + total
+            losses.update(loss, 1)
+            accuracy.update((correct_negative/total)*100, 1)
+
+    print('Test Epoch {}: Loss: {:.4f}, Accuracy {:.2f} \t'.format(epoch, losses.avg, accuracy.avg))
 
 
 
@@ -71,8 +95,11 @@ def main():
 
     #Get data path
     data_PATH = options.path
-    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=16, shuffle=False, **kwargs)
-    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=16, shuffle=False, **kwargs)
+    sincnet_path = options.sincnet_path
+    mlp_path = options.mlp_path
+
+    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=32, shuffle=False, **kwargs)
+    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=32, shuffle=False, **kwargs)
 
     #get parameters for SincNet and MLP
     #[cnn]
@@ -132,6 +159,13 @@ def main():
     MLP_net = MLP(DNN1_args)
     MLP_net.to(device)
 
+    try:
+        SincNet_model.load_state_dict(sincnet_path)
+        MLP_net.load_state_dict(mlp_path)
+    except:
+        print('Could not load models')
+
+
     optimizer_SincNet = optim.RMSprop(params=SincNet_model.parameters(), lr=lr, alpha=0.8, momentum=0.5)
     optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
 
@@ -144,6 +178,11 @@ def main():
         train(epoch=epoch, train_loader=train_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, optimizer_SincNet=optimizer_SincNet, optimizer_MLP=optimizer_MLP)
         duration = time.time() - start_time
         print("Done training epoch {} in {:.4f}".format(epoch, duration))
+        test(test_loader=test_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, epoch=epoch)
+        if (epoch % 10) == 0:
+            torch.save(SincNet_model.state_dict(), sincnet_path)
+            torch.save(MLP_net.state_dict(), mlp_path)
+            print("Model saved after {} epochs".format(epoch))
 
 
 
