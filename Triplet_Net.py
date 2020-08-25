@@ -349,7 +349,7 @@ class sinc_conv(nn.Module):
 
 #An activation function that does literally nothing
 class no_activation(nn.Module):
-    def __init__(self):
+    def __init__(self,):
         super().__init__()
     def forward(self,x):
         return x
@@ -377,7 +377,7 @@ def act_fun(act_type):
         return nn.LeakyReLU(1)  # initializzed like this, but not used in forward!
 
     if act_type == "none":
-        return no_activation
+        return no_activation()
 
 
 class LayerNorm(nn.Module):
