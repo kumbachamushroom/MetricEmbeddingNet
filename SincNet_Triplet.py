@@ -49,7 +49,7 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
         optimizer_SincNet.step()
         optimizer_MLP.step()
         losses.update(loss, 1)
-        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/batch_idx), losses.avg, accuracy.avg), flush=True, end='\r')
+        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), losses.avg, accuracy.avg), flush=True, end='\r')
 
 def test(test_loader, SincNet_model, MLP_model,epoch):
     MLP_model.eval()
