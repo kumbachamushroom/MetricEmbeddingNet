@@ -33,7 +33,6 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
     accuracy = AverageMeter()
     total_samples = 0
     for batch_idx, (tracks, int_labels, string_labels) in enumerate(train_loader):
-        i = i + 1
         tracks, int_labels = tracks.cuda(), int_labels.cuda()
         #tracks, int_labels = tracks.cuda(), int_labels.cuda()
         embeddings = SincNet_model(tracks)
