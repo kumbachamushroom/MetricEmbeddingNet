@@ -154,6 +154,7 @@ def main():
                  'fc_act': fc_act}
 
     MLP_net = MLP(DNN1_args)
+    print(MLP_net)
     MLP_net.to(device)
 
     try:
