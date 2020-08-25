@@ -49,8 +49,7 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
         optimizer_SincNet.step()
         optimizer_MLP.step()
         losses.update(loss, 1)
-        if batch_idx % 64 == 0:
-            print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, len(train_loader.dataset), losses.avg, accuracy.avg), flush=True, end='\r')
+        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, len(train_loader.dataset), losses.avg, accuracy.avg), flush=True, end='\r')
 
 def test(test_loader, SincNet_model, MLP_model,epoch):
     MLP_model.eval()
@@ -61,7 +60,7 @@ def test(test_loader, SincNet_model, MLP_model,epoch):
     with torch.no_grad():
         for batch_idx, (tracks, int_labels, string_labels) in enumerate(test_loader):
             tracks, int_labels = tracks.cuda(), int_labels.cuda()
-            embeddings = SincNet_model(embeddings)
+            embeddings = SincNet_model(tracks)
             embeddings = MLP_model(embeddings)
             loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_negative=2, margin_positive=2,
                                                                     device='cuda', squared=True)
