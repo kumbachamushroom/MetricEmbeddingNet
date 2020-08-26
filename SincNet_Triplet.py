@@ -45,10 +45,10 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
         acc = (correct_negative/total)*100
         accuracy.update(acc, 1)
         optimizer_SincNet.zero_grad()
-        optimizer_MLP.zero_grad()
+        #optimizer_MLP.zero_grad()
         loss.backward()
         optimizer_SincNet.step()
-        optimizer_MLP.step()
+        #optimizer_MLP.step()
         losses.update(loss, 1)
         print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), loss, acc), flush=True, end='\r')
 
@@ -170,8 +170,9 @@ def main():
         wandb.watch(models=SincNet_model)
         wandb.watch(models=MLP_net)
 
-    optimizer_SincNet = optim.RMSprop(params=SincNet_model.parameters(), lr=lr, alpha=0.8, momentum=0.5)
-    optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
+    optimizer_SincNet = optim.RMSprop(params=list(SincNet_model.parameters())+list(MLP_net.parameters()), lr=lr, alpha=0.8, momentum=0.5)
+    #optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
+
 
     cudnn.benchmark = True
     cudnn.enabled = True
