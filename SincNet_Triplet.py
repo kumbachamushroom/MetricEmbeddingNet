@@ -171,7 +171,7 @@ def main():
         wandb.watch(models=MLP_net)
 
     optimizer_SincNet = optim.RMSprop(params=list(SincNet_model.parameters())+list(MLP_net.parameters()), lr=lr, alpha=0.8, momentum=0.5)
-    #optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
+    optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
 
 
     cudnn.benchmark = True
