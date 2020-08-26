@@ -158,8 +158,8 @@ def main():
     MLP_net.to(device)
 
     try:
-        SincNet_model.load_state_dict(torch(sincnet_path))
-        MLP_net.load_state_dict(torch(mlp_path))
+        SincNet_model.load_state_dict(torch.load(sincnet_path))
+        MLP_net.load_state_dict(torch.load(mlp_path))
     except:
         print('Could not load models')
 
