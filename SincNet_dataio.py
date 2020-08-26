@@ -28,7 +28,7 @@ def read_conf():
     options.path = Config.get('data','path')
     options.sincnet_path = Config.get('data', 'save_path_sincnet')
     options.mlp_path = Config.get('data', 'save_path_mlp')
-
+    options.load = Config.get('data', 'load')
 
     # [windowing]
     options.fs = Config.get('windowing', 'fs')

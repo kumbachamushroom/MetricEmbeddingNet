@@ -42,14 +42,17 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
                                                                 squared=True)
 
         total_samples = total_samples + total
-        accuracy.update((correct_negative/total)*100, 1)
+        acc = (correct_negative/total)*100
+        accuracy.update(acc, 1)
         optimizer_SincNet.zero_grad()
         optimizer_MLP.zero_grad()
         loss.backward()
         optimizer_SincNet.step()
         optimizer_MLP.step()
         losses.update(loss, 1)
-        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), losses.avg, accuracy.avg), flush=True, end='\r')
+        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), loss, acc), flush=True, end='\r')
+
+        return losses.avg, accuracy.avg
 
 def test(test_loader, SincNet_model, MLP_model,epoch):
     MLP_model.eval()
@@ -67,9 +70,8 @@ def test(test_loader, SincNet_model, MLP_model,epoch):
             total_samples = total_samples + total
             losses.update(loss, 1)
             accuracy.update((correct_negative/total)*100, 1)
-
     print('Test Epoch {}: Loss: {:.4f}, Accuracy {:.2f} \t'.format(epoch, losses.avg, accuracy.avg))
-
+    return losses.avg, accuracy.avg
 
 
 
@@ -83,7 +85,7 @@ def main():
     project_name = options.project
 
     if log:
-        wandb.init(project='SincNet_MetricLoss')
+        wandb.init(project='SincNet_Triplet')
         wandb.run.name = project_name
 
     device = torch.device("cuda:0")
@@ -94,6 +96,7 @@ def main():
     data_PATH = options.path
     sincnet_path = options.sincnet_path
     mlp_path = options.mlp_path
+    load = options.load
 
     train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=64, shuffle=False, **kwargs)
     test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=64, shuffle=False, **kwargs)
@@ -154,15 +157,18 @@ def main():
                  'fc_act': fc_act}
 
     MLP_net = MLP(DNN1_args)
-    print(MLP_net)
     MLP_net.to(device)
 
-    try:
-        SincNet_model.load_state_dict(torch.load(sincnet_path))
-        MLP_net.load_state_dict(torch.load(mlp_path))
-    except:
-        print('Could not load models')
+    if load:
+        try:
+            SincNet_model.load_state_dict(torch.load(sincnet_path))
+            MLP_net.load_state_dict(torch.load(mlp_path))
+        except:
+            print('Could not load models')
 
+    if log:
+        wandb.watch(models=SincNet_model)
+        wandb.watch(models=MLP_net)
 
     optimizer_SincNet = optim.RMSprop(params=SincNet_model.parameters(), lr=lr, alpha=0.8, momentum=0.5)
     optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
@@ -173,10 +179,13 @@ def main():
 
     for epoch in range(1, N_epochs+1):
         start_time = time.time()
-        train(epoch=epoch, train_loader=train_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, optimizer_SincNet=optimizer_SincNet, optimizer_MLP=optimizer_MLP)
+        train_losses_avg, train_accuracy_avg = train(epoch=epoch, train_loader=train_loader, SincNet_model=SincNet_model, MLP_model=MLP_net,
+                                                     optimizer_SincNet=optimizer_SincNet, optimizer_MLP=optimizer_MLP)
         duration = time.time() - start_time
-        print("Done training epoch {} in {:.4f}".format(epoch, duration))
-        test(test_loader=test_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, epoch=epoch)
+        print("Done training epoch {} in {:.4f} \t Accuracy {:.2f} Loss {:.4f}".format(epoch, duration, train_accuracy_avg, train_losses_avg))
+        test_losses_avg, test_accuracy_avg = test(test_loader=test_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, epoch=epoch)
+        if log:
+            wandb.log({"Train Accuracy":train_accuracy_avg, "Train Loss":train_losses_avg, "Test Accuracy":test_accuracy_avg, "Test Loss":test_losses_avg})
         if (epoch % 10) == 0:
             torch.save(SincNet_model.state_dict(), sincnet_path)
             torch.save(MLP_net.state_dict(), mlp_path)
