@@ -115,11 +115,11 @@ class Generate_Triplet_List:
         trimmed_samples = []
         for line in open(os.path.join(self.save_path,'sample_list.txt')):
             samples.append((line.split()[0], line.split()[1], line.split()[2], line.split()[3]))
-        print(samples)
         speakers = [sample[1] for sample in samples]
+        print("Done1")
         unique_speakers = Counter(speakers).keys()
+        print(unique_speakers)
         for i, speaker in enumerate(unique_speakers):
-            shuffle(samples)
             sample_speaker = [sample for sample in samples if sample[1] == speaker]
             try:
                 sample_speaker = sample_speaker[0:max_samples]
@@ -127,7 +127,7 @@ class Generate_Triplet_List:
                 trimmed_samples.extend(sample_speaker)
         f = open(self.save_path+'/trimmed_sample_list.txt', 'a')
         for i in enumerate(trimmed_samples):
-            shuffle(trimmed_samples)
+            #shuffle(trimmed_samples)
             f.write(
                 trimmed_samples[i[0]][0] + "\t" + trimmed_samples[i[0]][1] + "\t" + str(list(unique_speakers).index(trimmed_samples[i[0]][1]))+ "\t" + trimmed_samples[i[0]][2] + "\t" +
                 trimmed_samples[i[0]][3] + "\n")
@@ -141,7 +141,7 @@ class Generate_Triplet_List:
 
 #Get a list of all the track from which you would like to extract speech
 track_list = glob.glob('/home/lucvanwyk/MetricEmbeddingNet/pyannote/amicorpus_individual/**/*.wav', recursive=True)
-print(track_list)
+#print(track_list)
 
 
 #create Generate_Triplet_List object
