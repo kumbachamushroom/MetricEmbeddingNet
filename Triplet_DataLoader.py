@@ -125,10 +125,8 @@ class Triplet_Time_Loader:
     def __init__(self, path, spectrogram=True, train=True):
         self.path = path
         self.as_spectrogram = spectrogram
-        print(self.as_spectrogram)
         self.samples = []
         self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
-        shuffle(self.samples)
         shuffle(self.samples)
         if train:
             self.samples = self.samples[0:int(0.8 * len(self.samples))]
@@ -140,7 +138,7 @@ class Triplet_Time_Loader:
     def __getitem__(self, index):
         sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
         track, sample_rate = torchaudio.load(sample)
-        track = track[0][(start_time*sample_rate):(stop_time*sample_rate)]
+        track = track[0][(start_time):(stop_time)]
         if self.as_spectrogram:
             track = track.view(1, -1)
             spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
