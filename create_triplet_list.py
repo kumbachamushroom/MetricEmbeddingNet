@@ -91,13 +91,12 @@ class Generate_Triplet_List:
                     print("Could not save while {}".format(filename))
 
     def label_speech(self,track, labels, snippet_length):
-        print(track)
         filename = track[track.rfind('/') + 1:]
         path = track
         speaker_label = track[track.rfind('_')+1:track.rfind('.')]
-        print(speaker_label)
         track, sample_rate = torchaudio.load(path)
         num_samples = floor(len(track[0])/(snippet_length*sample_rate))
+        print("the number of samples is ", num_samples)
         f = open(self.save_path+'/sample_list.txt', 'a')
         for i in range(num_samples):
             start_time = i*3
