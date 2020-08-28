@@ -145,12 +145,12 @@ print(track_list)
 
 
 #create Generate_Triplet_List object
-obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/MetricEmbeddingNet/pyannote/AMI/MixHeadset.train.rttm',path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',save_path='/home/lucvanwyk/MetricEmbeddingNet/pyannote/Extracted_Speech', path_xml='/home/lucvanwyk/MetricEmbeddingNet/corpusResources/meetings.xml',track_list=track_list, snippet_length=0.2)
+obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/MetricEmbeddingNet/pyannote/AMI/MixHeadset.train.rttm',path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',save_path='/home/lucvanwyk/MetricEmbeddingNet/pyannote/Extracted_Speech', path_xml='/home/lucvanwyk/MetricEmbeddingNet/corpusResources/meetings.xml',track_list=track_list)
 
 
 
 #Create sampl_list and trimmed_sample_list
-obj.extract_speech(labels=obj.get_speaker_labels())
+#obj.extract_speech(labels=obj.get_speaker_labels())
 obj.create_sample_list(snippet_length=0.2)
 obj.trim_samples(max_samples=10000)
 
