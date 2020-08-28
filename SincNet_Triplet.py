@@ -132,7 +132,7 @@ def main():
     seed = int(options.seed)
     torch.manual_seed(1234)
 
-    SincNet_args = {'input_dim': 48000, #3 seconds at 16000Hz
+    SincNet_args = {'input_dim': 3200, #3 seconds at 16000Hz
                    'fs': 16000,
                    'cnn_N_filt': cnn_N_filt,
                    'cnn_len_filt': cnn_len_filt,
