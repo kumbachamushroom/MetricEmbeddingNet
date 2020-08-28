@@ -25,7 +25,7 @@ class Generate_Triplet_List:
         self.path_xml = path_xml
         self.track_list = track_list
 
-    def create_sample_list(self):
+    def create_sample_list(self, snippet_length=3):
         '''
         Just a loop that extracts speech for every track in the list
         :return: None
@@ -35,7 +35,7 @@ class Generate_Triplet_List:
 
         for track in self.track_list:
             self.label_speech(track=track, labels=self.get_speaker_labels,
-                              snippet_length=3)
+                              snippet_length=snippet_length)
 
     def get_speaker_labels(self):
         """
@@ -145,14 +145,14 @@ print(track_list)
 
 
 #create Generate_Triplet_List object
-obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/MetricEmbeddingNet/pyannote/AMI/MixHeadset.train.rttm',path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',save_path='/home/lucvanwyk/MetricEmbeddingNet/pyannote/Extracted_Speech', path_xml='/home/lucvanwyk/MetricEmbeddingNet/corpusResources/meetings.xml',track_list=track_list)
+obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/MetricEmbeddingNet/pyannote/AMI/MixHeadset.train.rttm',path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',save_path='/home/lucvanwyk/MetricEmbeddingNet/pyannote/Extracted_Speech', path_xml='/home/lucvanwyk/MetricEmbeddingNet/corpusResources/meetings.xml',track_list=track_list, snippet_length=0.2)
 
 
 
 #Create sampl_list and trimmed_sample_list
 obj.extract_speech(labels=obj.get_speaker_labels())
-obj.create_sample_list()
-obj.trim_samples(max_samples=80)
+obj.create_sample_list(snippet_length=0.2)
+obj.trim_samples(max_samples=10000)
 
 
 
