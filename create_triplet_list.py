@@ -96,11 +96,12 @@ class Generate_Triplet_List:
         speaker_label = track[track.rfind('_')+1:track.rfind('.')]
         track, sample_rate = torchaudio.load(path)
         num_samples = floor(len(track[0])/(snippet_length*sample_rate))
+        sample_length = snippet_length*sample_rate #sample length in num of samples
         print("the number of samples is ", num_samples)
         f = open(self.save_path+'/sample_list.txt', 'a')
         for i in range(num_samples):
-            start_time = i*3
-            end_time = start_time + 3
+            start_time = i*sample_length
+            end_time = start_time + sample_length
             f.write(path+"\t"+speaker_label+"\t" + str(start_time)+"\t" + str(end_time)+"\n")
 
     def trim_samples(self,max_samples):
