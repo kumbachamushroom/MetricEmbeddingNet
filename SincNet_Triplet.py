@@ -90,7 +90,7 @@ def main():
 
     device = torch.device("cuda:0")
 
-    kwargs = {'num_workers' : 16, 'pin_memory':True}
+    kwargs = {'num_workers' : 4, 'pin_memory':True}
 
     #Get data path
     data_PATH = options.path
