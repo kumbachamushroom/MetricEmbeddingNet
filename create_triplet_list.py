@@ -100,8 +100,8 @@ class Generate_Triplet_List:
         print("the number of samples is ", num_samples)
         f = open(self.save_path+'/sample_list.txt', 'a')
         for i in range(num_samples):
-            start_time = i*sample_length
-            end_time = start_time + sample_length
+            start_time = int(i*sample_length)
+            end_time = int(start_time + sample_length)
             f.write(path+"\t"+speaker_label+"\t" + str(start_time)+"\t" + str(end_time)+"\n")
 
     def trim_samples(self,max_samples):
@@ -116,9 +116,7 @@ class Generate_Triplet_List:
         for line in open(os.path.join(self.save_path,'sample_list.txt')):
             samples.append((line.split()[0], line.split()[1], line.split()[2], line.split()[3]))
         speakers = [sample[1] for sample in samples]
-        print("Done1")
         unique_speakers = Counter(speakers).keys()
-        print(unique_speakers)
         for i, speaker in enumerate(unique_speakers):
             sample_speaker = [sample for sample in samples if sample[1] == speaker]
             try:
