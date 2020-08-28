@@ -90,7 +90,7 @@ def main():
 
     device = torch.device("cuda:0")
 
-    kwargs = {'num_workers' : 8, 'pin_memory':True}
+    kwargs = {'num_workers' : 16, 'pin_memory':True}
 
     #Get data path
     data_PATH = options.path
@@ -98,8 +98,8 @@ def main():
     mlp_path = options.mlp_path
     load = options.load
 
-    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=64, shuffle=False, **kwargs)
-    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=64, shuffle=False, **kwargs)
+    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=256, shuffle=True, **kwargs)
+    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=256, shuffle=False, **kwargs)
 
     #get parameters for SincNet and MLP
     #[cnn]
