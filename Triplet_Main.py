@@ -2,7 +2,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 from Triplet_DataLoader import TripletLoader
-from utlis import get_conv2d_output_shape, get_conv1d_output_shape
+from vgg_utils import get_conv2d_output_shape, get_conv1d_output_shape
 import os
 import numpy as np
 import wandb
@@ -11,10 +11,10 @@ import argparse
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.nn.functional as F
-from visdom import Visdom
+#from visdom import Visdom
 from torch.autograd import Variable
 from Triplet_DataLoader import Spectrogram_Loader
-from losses import batch_hard_triplet_loss
+from Metric_Losses import batch_hard_triplet_loss
 import numpy as np
 from Triplet_DataLoader import Triplet_Time_Loader
 import time
@@ -313,7 +313,7 @@ def main():
         train_batch(train_time_loader,model,optimizer,epoch)
         test_batch(test_time_loader,model,epoch)
         duration = time.time() - start_time
-        if (epoch % 10) == 0:
+        if (epoch % 5) == 0:
             torch.save(model.state_dict(), args.save_path)
             print("Model Saved")
         print("Done training epoch {} in {:.4f}".format(epoch, duration))

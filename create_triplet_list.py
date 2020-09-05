@@ -1,14 +1,13 @@
 import os
 import glob
-import numpy as np
-from pydub import AudioSegment
 import xml.etree.ElementTree as ET
 import torchaudio
 import numpy as np
 import torch
 from math import floor
 from collections import Counter
-from random import shuffle
+
+
 
 class Generate_Triplet_List:
 
@@ -36,6 +35,16 @@ class Generate_Triplet_List:
         for track in self.track_list:
             self.label_speech(track=track, labels=self.get_speaker_labels,
                               snippet_length=snippet_length)
+
+    def save_to_hdf5(self):
+        #get the length of the dataset
+        samples = []
+        f = open(os.path.join(self.save_path, 'trimmed_sample_list.txt'))
+        samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3]) for line in f]
+
+        print("The length of the dataset is ", len(samples))
+
+
 
     def get_speaker_labels(self):
         """
@@ -70,7 +79,8 @@ class Generate_Triplet_List:
                 filename = track[track.rfind('/') + 1:]
                 print(filename)
                 speaker_label = labels[filename]
-                track_array, sample_rate = torchaudio.load(track)
+                track_array = torchaudio.backend.sox_backend.load(track, normalization=False)
+                track_array, sample_rate = track_array[0], track_array[1]
                 track_array = track_array.numpy()[0]
                 rttm = open(self.path_rttm)
             except:
@@ -86,7 +96,7 @@ class Generate_Triplet_List:
                 new_filename = filename+'_'+speaker_label+'.wav'
                 extracted_speech = extracted_speech[extracted_speech != 0]
                 try:
-                    torchaudio.save(self.save_path+'/'+new_filename, torch.from_numpy(extracted_speech), sample_rate)
+                    torchaudio.backend.sox_backend.save(self.save_path+'/'+new_filename, torch.from_numpy(extracted_speech), sample_rate, precision=32)
                 except:
                     print("Could not save while {}".format(filename))
 
@@ -136,21 +146,35 @@ class Generate_Triplet_List:
 
 
 
+if os.uname()[1] != 'lucas-FX503VD':
+    #Get a list of all the track from which you would like to extract speech
+    track_list = glob.glob('/home/lucvanwyk/Data/pyannote/amicorpus_individual/**/*.wav', recursive=True)
+    #print(track_list)
+    #create Generate_Triplet_List object
+    obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/Data/pyannote/AMI/MixHeadset.train.rttm',
+                                path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',
+                                save_path='/home/lucvanwyk/Data/pyannote/Extracted_Speech',
+                                path_xml='/home/lucvanwyk/Data/corpusResources/meetings.xml',track_list=track_list)
+    #Create sampl_list and trimmed_sample_list
+    #obj.extract_speech(labels=obj.get_speaker_labels())
+    obj.create_sample_list(snippet_length=3)
+    obj.trim_samples(max_samples=100)
+    #obj.save_to_hdf5()
+else:
+    # Get a list of all the track from which you would like to extract speech
+    track_list = glob.glob('/home/lucas/PycharmProjects/Data/pyannote/amicorpus_individual/**/*.wav', recursive=True)
+    # print(track_list)
+    # create Generate_Triplet_List object
+    obj = Generate_Triplet_List(path_rttm='/home/lucas/PycharmProjects/Data/pyannote/AMI/MixHeadset.train.rttm',
+                                path_audio='/home/lucas/PycharmProjects/Data/pyannote/amicorpus_individual/EN2001a/audio',
+                                save_path='/home/lucas/PycharmProjects/Data/pyannote/Extracted_Speech',
+                                path_xml='/home/lucas/PycharmProjects/Data/corpusResources/meetings.xml', track_list=track_list)
+    # Create sampl_list and trimmed_sample_list
+    #obj.extract_speech(labels=obj.get_speaker_labels())
+    obj.create_sample_list(snippet_length=3)
+    obj.trim_samples(max_samples=50)
+    #obj.save_to_hdf5()
 
-#Get a list of all the track from which you would like to extract speech
-track_list = glob.glob('/home/lucvanwyk/MetricEmbeddingNet/pyannote/amicorpus_individual/**/*.wav', recursive=True)
-#print(track_list)
-
-
-#create Generate_Triplet_List object
-obj = Generate_Triplet_List(path_rttm='/home/lucvanwyk/MetricEmbeddingNet/pyannote/AMI/MixHeadset.train.rttm',path_audio='/home/lucas/PycharmProjects/Papers_with_code/data/AMI/amicorpus_individual/EN2001a/audio',save_path='/home/lucvanwyk/MetricEmbeddingNet/pyannote/Extracted_Speech', path_xml='/home/lucvanwyk/MetricEmbeddingNet/corpusResources/meetings.xml',track_list=track_list)
-
-
-
-#Create sampl_list and trimmed_sample_list
-#obj.extract_speech(labels=obj.get_speaker_labels())
-obj.create_sample_list(snippet_length=0.2)
-obj.trim_samples(max_samples=10000)
 
 
 

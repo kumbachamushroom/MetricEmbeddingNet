@@ -390,7 +390,11 @@ class LayerNorm(nn.Module):
 
     def forward(self, x):
         mean = x.mean(-1, keepdim=True)
+        #print(mean)
+        #mean[torch.isnan(mean)] == 0
+        #print(mean)
         std = x.std(-1, keepdim=True)
+        #print(std)
         return self.gamma * (x - mean) / (std + self.eps) + self.beta
 
 
@@ -569,7 +573,6 @@ class SincNet(nn.Module):
             x = self.bn0((x))
 
         x = x.view(batch, 1, seq_len)
-
 
         for i in range(self.N_cnn_lay):
 

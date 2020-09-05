@@ -10,7 +10,6 @@ def _pairwise_distances(embeddings, squared=False):
           pairwise_distances: tensor of shape (batch_size, batch_size)
       """
     dot_product = torch.matmul(embeddings, embeddings.t())
-
     #Get squared L@ norm for each emnbedding. We can just take the diagonal of the dot_product
     #This also provides more numerical stability (the diagonal of the result will be eactly 0)
     # shape (batch_size,)
@@ -88,7 +87,6 @@ def _get_anchor_negative_triplet_mask(labels):
     """
     # Check if labels[i] != labels[k]
     # Uses broadcasting where the 1st argument has shape (1, batch_size) and the 2nd (batch_size, 1)
-
     return ~(labels.unsqueeze(0) == labels.unsqueeze(1))
 
 
@@ -106,6 +104,7 @@ def batch_hard_triplet_loss(labels, embeddings, margin_negative, margin_positive
     """
     # Get the pairwise distance matrix
     pairwise_dist = _pairwise_distances(embeddings, squared=squared)
+
 
     # For each anchor, get the hardest positive
     # First, we need to get a mask for every valid positive (they should have same label)

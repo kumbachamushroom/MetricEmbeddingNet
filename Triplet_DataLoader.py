@@ -7,6 +7,8 @@ from random import sample as Sampler
 from random import shuffle as shuffle
 import matplotlib.pyplot as plt
 import numpy as np
+import math
+import time
 
 PATH = "/home/lucas/PycharmProjects/Papers_with_code/data/AMI/triplet_splits"
 
@@ -127,7 +129,7 @@ class Triplet_Time_Loader:
         self.as_spectrogram = spectrogram
         self.samples = []
         self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
-        shuffle(self.samples)
+        #shuffle(self.samples)
         if train:
             self.samples = self.samples[0:int(0.8 * len(self.samples))]
             print("TRAIN LENGTH", len(self.samples))
@@ -148,6 +150,35 @@ class Triplet_Time_Loader:
 
     def __len__(self):
         return len(self.samples)
+
+class Triplet_Tensor_Loader:
+    def __init__(self, path,spectrogram=True, train=True):
+        self.path = path
+        self.as_spectrogram = spectrogram
+        self.samples = []
+        self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
+        #shuffle(self.samples)
+        if train:
+            self.samples = self.samples[0:int(0.8 * len(self.samples))]
+            print("TRAIN LENGTH", len(self.samples))
+        else:
+            self.samples = self.samples[int(0.8 * len(self.samples)):]
+            print("TEST LENGTH", len(self.samples))
+
+    def __getitem__(self, index):
+        sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
+        track = torch.load(sample)
+        track = track[(start_time):(stop_time)]
+        if self.as_spectrogram:
+            track = track.view(1, -1)
+            spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
+            return spectrogram, torch.tensor(int_label), string_label
+        else:
+            return track, torch.tensor(int_label), string_label
+
+    def __len__(self):
+        return len(self.samples)
+
 
 class Single_Speaker_Loader:
     """
@@ -171,6 +202,44 @@ class Single_Speaker_Loader:
 
     def __len__(self):
         return len(self.samples)
+
+class Window_Loader(torch.utils.data.Dataset):
+    def __init__(self, path, spectrogram=True, train=True, window_length=0.2, overlap=0.01):
+        self.path = path
+        self.as_spectrogram = spectrogram
+        self.samples = []
+        self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
+        self.window_length = int(window_length*16000)
+        self.overlap = int(overlap*16000)
+        #shuffle(self.samples)
+        if train:
+            self.samples = self.samples[0:int(0.8 * len(self.samples))]
+            print("TRAIN LENGTH", len(self.samples))
+        else:
+            self.samples = self.samples[int(0.8 * len(self.samples)):]
+            print("TEST LENGTH", len(self.samples))
+
+    def __getitem__(self, index):
+        sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
+        track = torchaudio.backend.sox_backend.load(sample, normalization=False)
+        track, sample_rate = track[0], track[1]
+        track = track[0][(start_time):(stop_time)]
+        #self.window_length = int(self.window_length*sample_rate)
+        #self.overlap = int(self.overlap*sample_rate)
+
+        n_windows = 1 + math.floor((len(track)-self.window_length)/(self.window_length-self.overlap))
+        n_windows = int(n_windows)
+        window_tensor = torch.zeros(n_windows, self.window_length)
+        for i in range(n_windows):
+            offset = self.overlap*i
+            window_tensor[i, :] = track[offset:offset+self.window_length]
+        return window_tensor, torch.tensor(int_label)
+
+    def __len__(self):
+        return len(self.samples)
+
+
+
 
 
 

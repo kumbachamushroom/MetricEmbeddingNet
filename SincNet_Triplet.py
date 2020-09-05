@@ -1,6 +1,6 @@
 
 from Triplet_Net import *
-from Triplet_DataLoader import Triplet_Time_Loader
+from Triplet_DataLoader import Triplet_Tensor_Loader, Triplet_Time_Loader, Window_Loader
 from SincNet_dataio import ReadList, read_conf,str_to_bool
 import wandb
 import torch.utils.data as data
@@ -26,6 +26,67 @@ class AverageMeter:
         self.count += n
         self.avg = self.sum / self.count
 
+def train_windowed(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_MLP, epoch, device):
+    MLP_model.train()
+    SincNet_model.train()
+    losses = AverageMeter()
+    accuracy = AverageMeter()
+    total_samples = 0
+    for batch_idx, (tracks, int_labels) in enumerate(train_loader):
+        tracks, int_labels = tracks.cuda(), int_labels.cuda()
+        embeddings = torch.zeros(list(tracks.size())[0], 258, device=device)
+        for i in range(list(tracks.size())[0]):
+            track = tracks[i,:,:] #15, 3600
+            embedding =  MLP_model(SincNet_model(track))
+            embedding = torch.mean(embedding, dim=0, keepdim=True)
+            embeddings[i, :] = embedding
+        loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_positive=2,
+                                                                margin_negative=2, device='cuda',
+                                                                squared=True)
+        #total_samples = total + total_samples
+        #print(correct_negative, total, acc)
+        acc = (correct_negative / total) * 100
+        #print(correct_negative, total, acc)
+        accuracy.update(acc, 1)
+        optimizer_SincNet.zero_grad()
+        optimizer_MLP.zero_grad()
+        loss.backward()
+        optimizer_SincNet.step()
+        optimizer_MLP.step()
+        losses.update(loss.detach(), 1)
+        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.4f} \t '.format(epoch, batch_idx,
+                                                                             int(len(train_loader.dataset) / 64), loss,
+                                                                             acc), flush=True, end='\r')
+    return losses.avg, accuracy.avg
+
+def test_windowed(test_loader, SincNet_model, MLP_model, epoch, device):
+    MLP_model.eval()
+    SincNet_model.eval()
+    total_samples=0
+    losses = AverageMeter()
+    accuracy = AverageMeter()
+    with torch.no_grad():
+        for batch_idx, (tracks, int_labels) in enumerate(test_loader):
+            tracks, int_labels = tracks.cuda(), int_labels.cuda()
+            embeddings = torch.zeros(list(tracks.size())[0], 258, device=device)
+            for i in range(list(tracks.size())[0]):
+                track = tracks[i,:,:]
+                embedding = MLP_model(SincNet_model(track))
+                embedding = torch.mean(embedding, dim=0, keepdim=True)
+                embeddings[i, :] = embedding
+            loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_positive=2,
+                                                            margin_negative=2, device='cuda',
+                                                            squared=True)
+
+            total_samples = total_samples + total
+            losses.update(loss.detach(), 1)
+            accuracy.update((correct_negative / total) * 100, 1)
+    print('Test Epoch {}: Loss: {:.4f}, Accuracy {:.2f} \t'.format(epoch, losses.avg, accuracy.avg))
+    return losses.avg, accuracy.avg
+
+
+
+
 def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_MLP, epoch):
     MLP_model.train()
     SincNet_model.train()
@@ -34,23 +95,25 @@ def train(train_loader, SincNet_model, MLP_model, optimizer_SincNet, optimizer_M
     total_samples = 0
     for batch_idx, (tracks, int_labels, string_labels) in enumerate(train_loader):
         tracks, int_labels = tracks.cuda(), int_labels.cuda()
-        #tracks, int_labels = tracks.cuda(), int_labels.cuda()
         embeddings = SincNet_model(tracks)
         embeddings = MLP_model(embeddings)
         loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_positive=2,
                                                                 margin_negative=2, device='cuda',
                                                                 squared=True)
-
         total_samples = total_samples + total
         acc = (correct_negative/total)*100
         accuracy.update(acc, 1)
         optimizer_SincNet.zero_grad()
-        #optimizer_MLP.zero_grad()
+        optimizer_MLP.zero_grad()
+        #print(loss)
         loss.backward()
         optimizer_SincNet.step()
-        #optimizer_MLP.step()
+        optimizer_MLP.step()
         losses.update(loss, 1)
-        print(' Train epoch: {} [{}/{}]\t Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), loss, acc), flush=True, end='\r')
+        print(' Train epoch: {} [{}/{}]\t  Loss {:.4f} Acc {:.2f} \t '.format(epoch, batch_idx, int(len(train_loader.dataset)/64), loss, acc), flush=True, end='\r')
+        #wandb.log(
+        #    {"Train Accuracy": acc, "Train Loss": loss})#, "Test Accuracy": test_accuracy_avg,
+        #    # "Test Loss": test_losses_avg})
 
     return losses.avg, accuracy.avg
 
@@ -65,6 +128,7 @@ def test(test_loader, SincNet_model, MLP_model,epoch):
             tracks, int_labels = tracks.cuda(), int_labels.cuda()
             embeddings = SincNet_model(tracks)
             embeddings = MLP_model(embeddings)
+            #print(embeddings)
             loss, correct_negative, total = batch_hard_triplet_loss(int_labels, embeddings, margin_negative=2, margin_positive=2,
                                                                     device='cuda', squared=True)
             total_samples = total_samples + total
@@ -73,6 +137,15 @@ def test(test_loader, SincNet_model, MLP_model,epoch):
     print('Test Epoch {}: Loss: {:.4f}, Accuracy {:.2f} \t'.format(epoch, losses.avg, accuracy.avg))
     return losses.avg, accuracy.avg
 
+
+def testing_loader(loader):
+    i = 1
+    start = time.time()
+    for tracks, int_labels, string_labels in loader:
+        tracks = tracks.cuda()
+        int_labels = int_labels.cuda()
+        print(time.time()-start)
+        start=time.time()
 
 
 
@@ -98,8 +171,9 @@ def main():
     mlp_path = options.mlp_path
     load = options.load
 
-    train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=256, shuffle=True, **kwargs)
-    test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=256, shuffle=False, **kwargs)
+    #train_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=64, shuffle=True, **kwargs)
+    #test_loader = data.DataLoader(Triplet_Time_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=64, shuffle=True, **kwargs)
+
 
     #get parameters for SincNet and MLP
     #[cnn]
@@ -130,7 +204,12 @@ def main():
     N_batches = int(options.N_batches)
     N_eval_epoch = int(options.N_eval_epoch)
     seed = int(options.seed)
-    torch.manual_seed(1234)
+    torch.manual_seed(120)
+
+    train_loader = data.DataLoader(Window_Loader(path=data_PATH, spectrogram=False, train=True), batch_size=batch_size,
+                                   shuffle=True, **kwargs)
+    test_loader = data.DataLoader(Window_Loader(path=data_PATH, spectrogram=False, train=False), batch_size=batch_size,
+                                  shuffle=True, **kwargs)
 
     SincNet_args = {'input_dim': 3200, #3 seconds at 16000Hz
                    'fs': 16000,
@@ -170,27 +249,30 @@ def main():
         wandb.watch(models=SincNet_model)
         wandb.watch(models=MLP_net)
 
-    optimizer_SincNet = optim.RMSprop(params=list(SincNet_model.parameters())+list(MLP_net.parameters()), lr=lr, alpha=0.8, momentum=0.5)
-    optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
+    optimizer_SincNet = optim.Adam(params=SincNet_model.parameters(), lr=lr)
+    optimizer_MLP = optim.Adam(params=MLP_net.parameters(), lr=lr)
 
 
-    cudnn.benchmark = True
-    cudnn.enabled = True
+    #cudnn.benchmark = True
+
 
 
     for epoch in range(1, N_epochs+1):
         start_time = time.time()
-        train_losses_avg, train_accuracy_avg = train(epoch=epoch, train_loader=train_loader, SincNet_model=SincNet_model, MLP_model=MLP_net,
-                                                     optimizer_SincNet=optimizer_SincNet, optimizer_MLP=optimizer_MLP)
+        train_losses_avg, train_accuracy_avg = train_windowed(epoch=epoch, train_loader=train_loader, SincNet_model=SincNet_model, MLP_model=MLP_net,
+                                                     optimizer_SincNet=optimizer_SincNet, optimizer_MLP=optimizer_MLP, device=device)
         duration = time.time() - start_time
         print("Done training epoch {} in {:.4f} \t Accuracy {:.2f} Loss {:.4f}".format(epoch, duration, train_accuracy_avg, train_losses_avg))
-        test_losses_avg, test_accuracy_avg = test(test_loader=test_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, epoch=epoch)
+        test_losses_avg, test_accuracy_avg = test_windowed(test_loader=test_loader, SincNet_model=SincNet_model, MLP_model=MLP_net, epoch=epoch, device=device)
         if log:
             wandb.log({"Train Accuracy":train_accuracy_avg, "Train Loss":train_losses_avg, "Test Accuracy":test_accuracy_avg, "Test Loss":test_losses_avg})
-        if (epoch % 10) == 0:
+        if (epoch % 5) == 0:
             torch.save(SincNet_model.state_dict(), sincnet_path)
             torch.save(MLP_net.state_dict(), mlp_path)
             print("Model saved after {} epochs".format(epoch))
+
+
+
 
 
 
