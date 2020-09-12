@@ -249,9 +249,11 @@ def main():
         wandb.watch(models=SincNet_model)
         wandb.watch(models=MLP_net)
 
+    #optimizer_SincNet = optim.RMSprop(params=SincNet_model.parameters(), lr=lr,
+    #                                  alpha=0.8, momentum=0.5)
+    #optimizer_MLP = optim.RMSprop(params=MLP_net.parameters(), lr=lr, alpha=0.8, momentum=0.5)
     optimizer_SincNet = optim.Adam(params=SincNet_model.parameters(), lr=lr)
     optimizer_MLP = optim.Adam(params=MLP_net.parameters(), lr=lr)
-
 
     #cudnn.benchmark = True
 

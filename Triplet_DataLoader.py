@@ -50,37 +50,6 @@ class TripletLoader(torch.utils.data.Dataset):
         return len(self.anchor_positive_pairs)
 
 
-
-
-class Spectrogram_Loader(torch.utils.data.Dataset):
-    def __init__(self, base_path, anchor_positive_pairs, sample_list, train=True):
-        self.base_path = base_path
-        self.anchor_positive_pairs = anchor_positive_pairs
-        self.sample_list = sample_list
-        self.train = train
-        self.samples = []
-        for line in open(os.path.join(self.base_path, sample_list)):
-            self.samples.append((line.split()[0], line.split()[1]))
-        shuffle(self.samples)
-        if train:
-            self.samples = self.samples[0:int(0.8*len(self.samples))]
-            print("TRAIN LENGTH", len(self.samples))
-        else:
-            self.samples = self.samples[int(0.8*len(self.samples)):]
-            print("TEST LENGTH",len(self.samples))
-
-
-
-    def __getitem__(self, index):
-       sample_name, label = str(self.samples[index][0]), int(self.samples[index][1])
-       track, sample_rate = torchaudio.load(os.path.join(self.base_path, sample_name))
-       spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
-       label = np.asarray(label)
-       return spectrogram, torch.tensor(label)
-
-    def __len__(self):
-        return len(self.samples)
-
 class Selective_Loader(torch.utils.data.Dataset):
     def __init__(self, base_path, sample_list, label, train=True, negative=True):
         self.base_path = base_path
@@ -140,9 +109,12 @@ class Triplet_Time_Loader:
     def __getitem__(self, index):
         sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
         track, sample_rate = torchaudio.load(sample)
+        print(torch.mean(track))
+        print(sample_rate)
         track = track[0][(start_time):(stop_time)]
         if self.as_spectrogram:
             track = track.view(1, -1)
+            print(track)
             spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
             return spectrogram, torch.tensor(int_label), string_label
         else:
@@ -150,6 +122,42 @@ class Triplet_Time_Loader:
 
     def __len__(self):
         return len(self.samples)
+
+
+
+
+class Spectrogram_Loader(torch.utils.data.Dataset):
+    def __init__(self, filename, mel=False):
+        """
+        Load spectrograms from given input audio snippet
+        :param filename: .txt file containing snippet information
+        :param mel: bool --> return melspectrogram
+        """
+        self.path = filename
+        self.mel = mel
+        self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line
+                        in open(self.path)]
+        print("The length is: {}".format(len(self.samples)))
+    def __getitem__(self, index):
+        sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(
+            self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
+        track, sample_rate = torchaudio.backend.sox_backend.load_wav(sample, normalization=False)
+        track = track[0][(start_time):(stop_time)]
+        track = track.view(1, -1)
+        if self.mel == False:
+            #print(track.size())
+            spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
+            #print(spectrogram.size())
+            return spectrogram, torch.tensor(int_label), string_label
+        else:
+            spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=400, hop_length=100, n_mels=128)
+            return spectrogram, torch.tensor(int_label), string_label
+    def __len__(self):
+        return len(self.samples)
+
+
+
+
 
 class Triplet_Tensor_Loader:
     def __init__(self, path,spectrogram=True, train=True):
@@ -204,39 +212,34 @@ class Single_Speaker_Loader:
         return len(self.samples)
 
 class Window_Loader(torch.utils.data.Dataset):
-    def __init__(self, path, spectrogram=True, train=True, window_length=0.2, overlap=0.01):
-        self.path = path
-        self.as_spectrogram = spectrogram
+    def __init__(self, filename,windowed=True, window_length=0.2, overlap=0.01):
+        self.path = filename
         self.samples = []
         self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
         self.window_length = int(window_length*16000)
         self.overlap = int(overlap*16000)
-        #shuffle(self.samples)
-        if train:
-            self.samples = self.samples[0:int(0.8 * len(self.samples))]
-            print("TRAIN LENGTH", len(self.samples))
-        else:
-            self.samples = self.samples[int(0.8 * len(self.samples)):]
-            print("TEST LENGTH", len(self.samples))
+        self.windowed = windowed
 
     def __getitem__(self, index):
         sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
-        track = torchaudio.backend.sox_backend.load(sample, normalization=False)
+        track = torchaudio.backend.sox_backend.load(sample, normalization=True)
         track, sample_rate = track[0], track[1]
         track = track[0][(start_time):(stop_time)]
-        #self.window_length = int(self.window_length*sample_rate)
-        #self.overlap = int(self.overlap*sample_rate)
-
-        n_windows = 1 + math.floor((len(track)-self.window_length)/(self.window_length-self.overlap))
-        n_windows = int(n_windows)
-        window_tensor = torch.zeros(n_windows, self.window_length)
-        for i in range(n_windows):
-            offset = self.overlap*i
-            window_tensor[i, :] = track[offset:offset+self.window_length]
-        return window_tensor, torch.tensor(int_label)
+        if self.windowed:
+            n_windows = 1 + math.floor((len(track)-self.window_length)/(self.window_length-self.overlap))
+            n_windows = int(n_windows)
+            window_tensor = torch.zeros(n_windows, self.window_length)
+            for i in range(n_windows):
+                offset = self.overlap*i
+                window_tensor[i, :] = track[offset:offset+self.window_length]
+            return window_tensor, torch.tensor(int_label), string_label
+        else:
+            return track, torch.tensor(int_label), string_label
 
     def __len__(self):
         return len(self.samples)
+
+
 
 
 

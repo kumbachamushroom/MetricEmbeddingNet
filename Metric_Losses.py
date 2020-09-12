@@ -103,13 +103,15 @@ def batch_hard_triplet_loss(labels, embeddings, margin_negative, margin_positive
         triplet_loss: scalar tensor containing the triplet loss
     """
     # Get the pairwise distance matrix
-    pairwise_dist = _pairwise_distances(embeddings, squared=squared)
+    pairwise_dist = _pairwise_distances(embeddings, squared=squared).to(device)
 
 
     # For each anchor, get the hardest positive
     # First, we need to get a mask for every valid positive (they should have same label)
     mask_anchor_positive = _get_anchor_positive_triplet_mask(labels, device).float()
 
+    #print(mask_anchor_positive)
+    #print(pairwise_dist)
     # We put to 0 any element where (a, p) is not valid (valid if a != p and label(a) == label(p))
     anchor_positive_dist = mask_anchor_positive * pairwise_dist
 
@@ -139,7 +141,7 @@ def batch_hard_triplet_loss(labels, embeddings, margin_negative, margin_positive
 
 
 
-    return triplet_loss, correct_negative, tl.numel()
+    return triplet_loss
 
 
 

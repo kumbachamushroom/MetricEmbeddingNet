@@ -99,6 +99,8 @@ class VGGVox(nn.Module):
 
 
          x = sequences
+         #print(x)
+         #print(x.size())
         # x = torch.transpose(sequences, 1, 2).view(
              #30, 1, 3, 3)
 

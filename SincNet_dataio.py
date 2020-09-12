@@ -24,22 +24,6 @@ def read_conf():
     Config = ConfigParser.ConfigParser()
     Config.read(cfg_file)
 
-    # [data]
-    options.path = Config.get('data','path')
-    options.sincnet_path = Config.get('data', 'save_path_sincnet')
-    options.mlp_path = Config.get('data', 'save_path_mlp')
-    options.load = Config.get('data', 'load')
-
-    # [windowing]
-    options.fs = Config.get('windowing', 'fs')
-    options.cw_len = Config.get('windowing', 'cw_len')
-    options.cw_shift = Config.get('windowing', 'cw_shift')
-
-
-    #[wandb]
-    options.wandb = Config.getboolean('wandb','log')
-    options.project = Config.get('wandb','project')
-
     # [cnn]
     options.cnn_N_filt = Config.get('cnn', 'cnn_N_filt')
     options.cnn_len_filt = Config.get('cnn', 'cnn_len_filt')
@@ -70,12 +54,12 @@ def read_conf():
     options.class_act = Config.get('class', 'class_act')
 
     # [optimization]
-    options.lr = Config.get('optimization', 'lr')
-    options.batch_size = Config.get('optimization', 'batch_size')
-    options.N_epochs = Config.get('optimization', 'N_epochs')
-    options.N_batches = Config.get('optimization', 'N_batches')
-    options.N_eval_epoch = Config.get('optimization', 'N_eval_epoch')
-    options.seed = Config.get('optimization', 'seed')
+    #options.lr = Config.get('optimization', 'lr')
+    #options.batch_size = Config.get('optimization', 'batch_size')
+    #options.N_epochs = Config.get('optimization', 'N_epochs')
+    #options.N_batches = Config.get('optimization', 'N_batches')
+    #options.N_eval_epoch = Config.get('optimization', 'N_eval_epoch')
+    #options.seed = Config.get('optimization', 'seed')
     #options.AMSoftmax = Config.get('optimization', 'AMSoftmax')
     #options.AMSoftmax_m = Config.get('optimization', 'AMSoftmax_m')
 
