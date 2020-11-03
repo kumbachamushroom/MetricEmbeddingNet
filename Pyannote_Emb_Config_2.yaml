@@ -1,0 +1,65 @@
+
+audio:
+  verification_path: ['/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/ES2011a/audio/ES2011a.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/ES2011b/audio/ES2011b.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/ES2011c/audio/ES2011c.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IB4001/audio/IB4001.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IB4003/audio/IB4003.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IB4010/audio/IB4010.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IS1008a/audio/IS1008a.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IS1008b/audio/IS1008b.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/IS1008c/audio/IS1008c.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3004a/audio/TS3004a.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3004b/audio/TS3004b.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3004c/audio/TS3004c.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3006a/audio/TS3006a.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3006b/audio/TS3006b.Mix-Headset.wav',
+                      '/home/lucvanwyk/Data/pyannote/amicorpus/amicorpus/TS3006c/audio/TS3006c.Mix-Headset.wav']
+
+  uri: ['ES2011a.Mix-Headset',
+        'ES2011b.Mix-Headset',
+        'ES2011c.Mix-Headset',
+        'IB4001.Mix-Headset',
+        'IB4003.Mix-Headset',
+        'IB4010.Mix-Headset',
+        'IS1008a.Mix-Headset',
+        'IS1008b.Mix-Headset',
+        'IS1008c.Mix-Headset',
+        'TS3004a.Mix-Headset',
+        'TS3004b.Mix-Headset',
+        'TS3004c.Mix-Headset',
+        'TS3006a.Mix-Headset',
+        'TS3006b.Mix-Headset',
+        'TS3006c.Mix-Headset']
+
+  target_path: ['/home/lucvanwyk/Data/pyannote/Extracted_Speech/ES2011d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/ES2011d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/ES2011d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IB4002',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IB4004',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IB4011',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IS1008d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IS1008d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/IS1008d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3004d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3004d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3004d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3006d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3006d',
+                '/home/lucvanwyk/Data/pyannote/Extracted_Speech/TS3006d']
+
+  rttm_path: '/home/lucvanwyk/Data/pyannote/AMI/MixHeadset.development.rttm'
+  window_length: [1, 2]
+  #step_length: [2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4]
+  step_length: [0.20, 0.40, 0.60, 0.80, 1]
+  threshold: [0.1, 0.2, 0.25, 0.3, 0.325, 0.35, 0.375, 0.4, 0.45, 0.475, 0.5, 0.525, 0.55, 0.575, 0.6, 0.625, 0.65, 0.7, 0.75, 0.775, 0.8, 0.9]
+  collar: 0.250
+
+pretrained_model:
+  path: 'pyannote/pyannote-audio'
+  type: 'emb_voxceleb'
+
+dataframes:
+  save_path: '/home/lucvanwyk/MetricEmbeddingNet/csv_dataframes'
+
+

@@ -127,7 +127,7 @@ class Triplet_Time_Loader:
 
 
 class Spectrogram_Loader(torch.utils.data.Dataset):
-    def __init__(self, filename, mel=False):
+    def __init__(self, filename, mel=False, one_hot=False):
         """
         Load spectrograms from given input audio snippet
         :param filename: .txt file containing snippet information
@@ -135,30 +135,86 @@ class Spectrogram_Loader(torch.utils.data.Dataset):
         """
         self.path = filename
         self.mel = mel
+        self.one_hot = one_hot
         self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line
                         in open(self.path)]
-        print("The length is: {}".format(len(self.samples)))
+        #print(self.samples[2])
+        self.classes = len(list(set([int(sample[2]) for sample in self.samples])))
+        #print("The length is: {}".format(len(self.samples)))
     def __getitem__(self, index):
         sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(
             self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
-        track, sample_rate = torchaudio.backend.sox_backend.load_wav(sample, normalization=False)
+        #track, sample_rate = torchaudio.backend.sox_backend.load_wav(sample, normalization=False)
+        track, sample_rate = torchaudio.load(sample)
         track = track[0][(start_time):(stop_time)]
         track = track.view(1, -1)
+        wkwargs = {'requires_grad': False}
         if self.mel == False:
             #print(track.size())
-            spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
-            #print(spectrogram.size())
-            return spectrogram, torch.tensor(int_label), string_label
+            spectrogram = torchaudio.transforms.Spectrogram(n_fft=512, window_fn=torch.hamming_window,win_length=int(sample_rate*25e-3), hop_length=int(sample_rate*10e-3), normalized=True, power=1,wkwargs=wkwargs)(track)
+            #Spectrogram size --> [1, 257, 301]
+            if self.one_hot:
+                one_hot_vector = [0 for _ in range(self.classes)]
+                one_hot_vector[int_label] = 1
+                return spectrogram, one_hot_vector, string_label
+            else:
+                return spectrogram, torch.tensor(int_label), string_label
         else:
-            spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=400, hop_length=100, n_mels=128)
+            spectrogram = torchaudio.transforms.MelSpectrogram(n_fft=512,sample_rate=16000, win_length=int(sample_rate*25e-3),hop_length=int(sample_rate*10e-3), window_fn=torch.hamming_window, normalized=True, power=1, wkwargs=wkwargs)(track)
+            # Spectrogram size --> [1, 128, 301]
             return spectrogram, torch.tensor(int_label), string_label
+
     def __len__(self):
         return len(self.samples)
 
+#test = Spectrogram_Loader(filename='/home/lucas/PycharmProjects/Data/pyannote/Extracted_Speech/trimmed_sample_list.txt', mel=False, one_hot=True)
+
+class Spectrogram_FrameWise_Loader(torch.utils.data.Dataset):
+    '''
+    This class is the same as Spectrogram_Loader but it returns a tensor of overlapping frames
+    '''
+    def __init__(self, filename, frame_list, mel=False):
+        self.path = filename
+        self.mel = mel
+        self.frame_list = frame_list
+        self.track, self.sample_rate = torchaudio.load(self.path)
+
+    def __getitem__(self, index):
+        start_sample = math.ceil(self.frame_list[index][0] * self.sample_rate)
+        #print('start ', start_sample)
+        end_sample = math.ceil(self.frame_list[index][1] * self.sample_rate)
+        #print('end ', end_sample)
+        wkwargs = {'requires_grad': False}
+        if self.mel == False:
+            spectrogram = torchaudio.transforms.Spectrogram(n_fft=512,
+                                                            window_fn=torch.hamming_window,
+                                                            win_length=int(self.sample_rate*25e-3),
+                                                            hop_length=int(self.sample_rate*10e-3),
+                                                            normalized=True,
+                                                            power=1,wkwargs=wkwargs)(self.track[0][start_sample: end_sample].view(1,-1))
+            if (spectrogram.size()[2] < 301):
+                spectrogram = torch.nn.functional.pad(spectrogram, (0,(301 - spectrogram.size()[2])), "constant", 0)
+
+            #Spectrogram size --> [1, 257, 301]
+            #print(self.frame_list[index][1] - self.frame_list[index][0])
+            return spectrogram
+
+        else:
+            spectrogram = torchaudio.transforms.MelSpectrogram(n_fft=512,
+                                                               sample_rate=self.sample_rate,
+                                                               win_length=int(self.sample_rate*25e-3)
+                                                               ,hop_length=int(self.sample_rate*10e-3)
+                                                               ,window_fn=torch.hamming_window,
+                                                               normalized=True, power=1, wkwargs=wkwargs)(self.track[0][start_sample, end_sample].view(1,-1))
+            # Spectrogram size --> [1, 128, 301]
+            return spectrogram, self.frame_list[index]
+
+    def __len__(self):
+        return len(self.frame_list)
 
 
 
-
+'''
 class Triplet_Tensor_Loader:
     def __init__(self, path,spectrogram=True, train=True):
         self.path = path
@@ -186,6 +242,7 @@ class Triplet_Tensor_Loader:
 
     def __len__(self):
         return len(self.samples)
+'''
 
 
 class Single_Speaker_Loader:
@@ -194,19 +251,35 @@ class Single_Speaker_Loader:
         path: Path to the sample list (txt file)
         speaker: Label of desired speaker
     """
-    def __init__(self,path, speaker):
+    def __init__(self,path, speaker, mel):
         self.path = path
         self.samples = [(line.split()[0], line.split()[1], line.split()[2], line.split()[3], line.split()[4]) for line in open(self.path)]
         self.samples = [sample for sample in self.samples if (sample[1] == speaker)]
+        self.mel = mel
 
     def __getitem__(self, index):
-        sample, string_label, int_label, start_time, stop_time = self.samples[index][0], self.samples[index][1], int(
+        sample, string_label, int_label, start_sample, end_sample = self.samples[index][0], self.samples[index][1], int(
             self.samples[index][2]), int(self.samples[index][3]), int(self.samples[index][4])
         track, sample_rate = torchaudio.load(sample)
-        track = track[0][(start_time * sample_rate):(stop_time * sample_rate)]
+        track = track[0][start_sample:end_sample]
         track = track.view(1, -1)
-        spectrogram = torchaudio.transforms.Spectrogram(normalized=True, power=1, n_fft=400, hop_length=100)(track)
-        return spectrogram, torch.tensor(int_label), string_label
+        wkwargs = {'requires_grad': False}
+        if self.mel:
+            spectrogram = torchaudio.transforms.MelSpectrogram(n_fft=512,
+                                                               sample_rate=sample_rate,
+                                                               win_length=int(sample_rate*25e-3)
+                                                               ,hop_length=int(sample_rate*10e-3)
+                                                               ,window_fn=torch.hamming_window,
+                                                               normalized=True, power=1, wkwargs=wkwargs)(track)
+            return spectrogram, torch.tensor(int_label), string_label
+        else:
+            spectrogram = torchaudio.transforms.Spectrogram(n_fft=512,
+                                                            window_fn=torch.hamming_window,
+                                                            win_length=int(sample_rate * 25e-3),
+                                                            hop_length=int(sample_rate * 10e-3),
+                                                            normalized=True,
+                                                            power=1, wkwargs=wkwargs)(track)
+            return spectrogram #, torch.tensor(int_label), string_label
 
     def __len__(self):
         return len(self.samples)

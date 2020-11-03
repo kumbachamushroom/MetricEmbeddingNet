@@ -18,17 +18,22 @@ from random import randint
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
+import pytorch_lightning as pl
 sns.set_style("darkgrid")
 
 
 class Full_SincNet(pl.LightningModule):
-    def __init__(self, SincNet_model, MLP_model, args):
+    def __init__(self, SincNet_model, MLP_model,Class_model, args, learning_rate=1e-4):
         super(Full_SincNet,self).__init__()
         self.SincNet_model = SincNet_model
         self.MLP_model = MLP_model
+        self.Class_model = Class_model
         self.loss_criterion = batch_hard_triplet_loss(8, True)
         self.args = args
         self.kwargs = {'num_workers':8, 'pin_memory':True}
+        self.learning_rate = learning_rate
+
+
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(Window_Loader(filename=args.train_set,
@@ -58,12 +63,16 @@ class Full_SincNet(pl.LightningModule):
     def forward(self, x):
         batch_size, windows, samples = list(x.size())[0], list(x.size())[1], list(x.size())[2]
         x = x.view(-1, batch_size*windows, samples).squeeze()
-        embeddings = self.MLP_model(self.SincNet_model(x)).view(batch_size, windows, 258)
+        embeddings = self.SincNet_model(x)
+        embeddings = self.MLP_model(embeddings)
+        embeddings = self.Class_model(embeddings).view(batch_size, windows,258)
         embeddings = torch.mean(embeddings, dim=1, keepdim=True).squeeze()
         return embeddings
 
     def loss_function(self,embeddings, int_labels):
+        #print(embeddings)
         loss = self.loss_criterion(int_labels, embeddings)
+        #print(loss)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -71,8 +80,6 @@ class Full_SincNet(pl.LightningModule):
         x = self(x)
         loss, correct_negative,total= self.loss_function(x, int_labels)
         logs = {'train_loss':loss, 'train_accuracy':(correct_negative/total)*100}
-        if self.current_epoch % 20 == 0:
-            self.plot_embeddings()
         return {'loss':loss, 'log':logs}
 
 
@@ -125,13 +132,13 @@ class Full_SincNet(pl.LightningModule):
                     fontsize=1,
                     weight='normal'
                     ).set_size(10)
-        plt.title('t-SNE plot for speaker embeddings trained with triplet loss on VGG-Vox (256 dimensional embedding)',
+        plt.title('t-SNE plot for speaker embeddings trained with triplet loss on SincNet (256 dimensional embedding)',
                   fontsize=24)
 
         plt.tick_params(labelsize=20)
         plt.xlabel('tsne-one', fontsize=20)
         plt.ylabel('tsne-two', fontsize=20)
-        plt.savefig('tsne-plot-{}.png'.format(self.current_epoch))
+        plt.savefig('tsne-plot-Sincnet-epoch:{}.png'.format(self.current_epoch))
         wandb.log({"Validation set at epoch {}".format(self.current_epoch): plt})
 
 
@@ -140,23 +147,33 @@ class Full_SincNet(pl.LightningModule):
         x = self(x)
         loss, correct_negative, total = self.loss_function(x, int_labels)
         logs = {'valid_loss':loss, 'valid_accuracy':(correct_negative/total)*100}
-        return {'loss':loss, 'logs':logs}
+        return {'loss':loss, 'log':logs}
 
-    #def validation_step(self):
-    #    if self.current_epoch % 5 == 0:
-    #        print('Doing validation')
+    #def on_validation_epoch_end(self):
+    #    print('We are now at epoch {}'.format(self.current_epoch))
+    #    if (self.current_epoch % 20) == 0:
+    #        self.plot_embeddings()
+    #        print('Validation plot saved ')
+    #        #torch.save(self.SincNet_model.state_dict(), self.args.model_path_sincnet)
+    #        #torch.save(self.MLP_model.state_dict(), self.args.model_path_mlp)
+    #        #print('Model saved at epoch {}'.format(self.current_epoch))
 
     def configure_optimizers(self):
-        return torch.optim.RMSprop(list(self.SincNet_model.parameters())+list(self.MLP_model.parameters()), lr=0.0001, alpha=0.8, momentum=0.5)
+        return torch.optim.RMSprop(list(self.SincNet_model.parameters())+list(self.MLP_model.parameters())+list(self.Class_model.parameters()), lr=1e-3 ,alpha=0.95, momentum=0.5)
+        #return torch.optim.Adam(list(self.SincNet_model.parameters())+list(self.MLP_model.parameters())+list(self.Class_model.parameters()),lr=1e-4 , amsgrad=True)
+
+
+def train(trainer, model):
+    trainer.fit(model)
 
 def main():
     global args
 
 
     parser = argparse.ArgumentParser(description="SincNet Speaker Recognition from Raw Waveform")
-    parser.add_argument('--test-batch-size', type=int, default=32, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=128, metavar='N',
                         help='input batch size for training')
-    parser.add_argument('--train-batch-size', type=int, default=16, metavar='N',
+    parser.add_argument('--train-batch-size', type=int, default=128, metavar='N',
                         help='input batch size for testing')
     parser.add_argument('--epochs', type=int, default=200, metavar='N',
                         help='number of epochs')
@@ -169,15 +186,15 @@ def main():
     parser.add_argument('--name', default='VGG_Spectogram_Triplet', type=str,
                         help='name of network')
     parser.add_argument('--train-set',
-                        default='/home/lucas/PycharmProjects/Data/pyannote/Extracted_Speech/trimmed_sample_list_train.txt',
+                        default='/home/lucvanwyk/Data/pyannote/Extracted_Speech/trimmed_sample_list_train.txt',
                         type=str,
                         help='path to train samples')
     parser.add_argument('--test-set',
-                        default='/home/lucas/PycharmProjects/Data/pyannote/Extracted_Speech/trimmed_sample_list_test.txt',
+                        default='/home/lucvanwyk/Data/pyannote/Extracted_Speech/trimmed_sample_list_test.txt',
                         type=str,
                         help='path to test samples')
     parser.add_argument('--valid-set',
-                        default='/home/lucas/PycharmProjects/Data/pyannote/Extracted_Speech/trimmed_sample_list_valid.txt',
+                        default='/home/lucvanwyk/Data/pyannote/Extracted_Speech/trimmed_sample_list_valid.txt',
                         type=str,
                         help='path to validation samples')
     parser.add_argument('--model-path-sincnet',
@@ -197,7 +214,7 @@ def main():
     args = parser.parse_args()
 
     options = read_conf()
-    wandb_logger = WandbLogger(name='testingwandblogger_validandall', project='sincnet_triplet')
+    wandb_logger = WandbLogger(name='SincNet-lr1e-3', project='sincnet_triplet')
 
 
 
@@ -223,6 +240,15 @@ def main():
     fc_use_laynorm = list(map(str_to_bool, options.fc_use_laynorm.split(',')))
     fc_act = list(map(str, options.fc_act.split(',')))
 
+    # [class]
+    class_lay = list(map(int, options.class_lay.split(',')))
+    class_drop = list(map(float, options.class_drop.split(',')))
+    class_use_laynorm_inp = str_to_bool(options.class_use_laynorm_inp)
+    class_use_batchnorm_inp = str_to_bool(options.class_use_batchnorm_inp)
+    class_use_batchnorm = list(map(str_to_bool, options.class_use_batchnorm.split(',')))
+    class_use_laynorm = list(map(str_to_bool, options.class_use_laynorm.split(',')))
+    class_act = list(map(str, options.class_act.split(',')))
+
     SincNet_args = {'input_dim': 3200,  # 3 seconds at 16000Hz
                     'fs': 16000,
                     'cnn_N_filt': cnn_N_filt,
@@ -246,9 +272,28 @@ def main():
                  'fc_use_batchnorm_inp': fc_use_batchnorm_inp,
                  'fc_act': fc_act}
     MLP_model = MLP(DNN1_args)
-    model = Full_SincNet(SincNet_model, MLP_model, args)
-    trainer =pl.Trainer( max_epochs=10,gpus=1, precision=16, distributed_backend='dp', logger=wandb_logger)
-    trainer.fit(model)
+
+    DNN2_args = {'input_dim': fc_lay[-1],
+                 'fc_lay': class_lay,
+                 'fc_drop': class_drop,
+                 'fc_use_batchnorm': class_use_batchnorm,
+                 'fc_use_laynorm': class_use_laynorm,
+                 'fc_use_laynorm_inp': class_use_laynorm_inp,
+                 'fc_use_batchnorm_inp': class_use_batchnorm_inp,
+                 'fc_act': class_act,
+                 }
+    torch.manual_seed(1234)
+    Class_model = MLP(DNN2_args)
+    model = Full_SincNet(SincNet_model, MLP_model,Class_model, args)
+    trainer =pl.Trainer( max_epochs=200,gpus=1, precision=32, logger=wandb_logger, auto_lr_find=False)
+    #trainer1 = pl.Trainer()
+    #lr_finder = trainer1.lr_find(model)
+    #fig = lr_finder.plot(suggest=True)
+    #fig.show()
+    #new_lr = lr_finder.suggestion()
+    #print(new_lr)
+
+    train(trainer=trainer, model=model)
 
 
 if __name__ == '__main__':

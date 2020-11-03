@@ -95,6 +95,7 @@ class batch_hard_triplet_loss(torch.nn.Module):
 
     def forward(self, labels, embeddings):
         self.embeddings = embeddings
+
         self.labels = labels
         """Build the triplet loss over a batch of embeddings.
             For each anchor, we get the hardest positive and hardest negative to form a triplet.
@@ -113,6 +114,7 @@ class batch_hard_triplet_loss(torch.nn.Module):
         # For each anchor, get the hardest positive
         # First, we need to get a mask for every valid positive (they should have same label)
         mask_anchor_positive = self._get_anchor_positive_triplet_mask()
+        #print(mask_anchor_positive.size())
 
         # print(mask_anchor_positive)
         # print(pairwise_dist)
@@ -125,6 +127,7 @@ class batch_hard_triplet_loss(torch.nn.Module):
         # For each anchor, get the hardest negative
         # First, we need to get a mask for every valid negative (they should have different labels)
         mask_anchor_negative = self._get_anchor_negative_triplet_mask().float()
+        #print(mask_anchor_negative.size())
 
         # We add the maximum value in each row to the invalid negatives (label(a) == label(n))
         max_anchor_negative_dist, _ = pairwise_dist.max(1, keepdim=True)
@@ -133,16 +136,20 @@ class batch_hard_triplet_loss(torch.nn.Module):
         # shape (batch_size,)
         hardest_negative_dist, _ = anchor_negative_dist.min(1, keepdim=True)
 
+        #print(hardest_positive_dist)
+        #print(hardest_negative_dist)
         # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
         tl = hardest_positive_dist - hardest_negative_dist + self.margin_negative
-        # t2 = hardest_positive_dist - margin_negative
 
-        correct_negative = tl[tl < 0].numel()
-        # correct_positive = t2[t2 < 0].numel()
+        #t2 = hardest_positive_dist - (self.margin_negative/2)
+
+        #correct_negative = tl[tl < 0].numel()
+        #correct_positive = t2[t2 < 0].numel()
         tl[tl < 0] = 0
-        # t2[t2 < 0] = 0
-        triplet_loss = tl.mean()  # + t2.mean()
+        #t2[t2 < 0] = 0
+        #print(tl)
+        triplet_loss = tl.mean() #+ t2.mean()
 
-        return triplet_loss, correct_negative, tl.numel()
+        return triplet_loss, hardest_positive_dist.mean(), hardest_negative_dist.mean()
 
 
